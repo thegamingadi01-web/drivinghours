@@ -7,28 +7,146 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         body { background: #f1f5f9; padding-bottom: 50px; -webkit-tap-highlight-color: transparent; }
-        .card { background: white; border-radius: 15px; padding: 15px; margin-bottom: 15px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
-        input { border-bottom: 2px solid #e2e8f0; padding: 5px; background: transparent; width: 100%; }
-        input[type="time"] { border: none; border-bottom: 2px solid #e2e8f0; font-size: 1.1rem; }
-        .stat-card { padding: 10px; rounded: 15px; text-align: center; color: white; }
+        .card { background: white; border-radius: 12px; padding: 12px; margin-bottom: 12px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
+        input { border-bottom: 2px solid #e2e8f0; padding: 4px; background: transparent; width: 100%; }
+        input[type="time"] { border: none; border-bottom: 2px solid #e2e8f0; font-size: 1rem; }
     </style>
 </head>
-<body class="p-4 font-sans text-slate-900">
+<body class="p-3 font-sans text-slate-900">
 
     <div class="flex justify-between items-center mb-4">
-        <h1 class="text-2xl font-bold text-slate-800 italic">DriveLog Pro</h1>
-        <button onclick="saveShift()" class="bg-blue-600 text-white px-6 py-2 rounded-full font-bold shadow-md active:scale-95 transition-transform">SAVE</button>
+        <h1 class="text-xl font-bold text-slate-800 italic">DriveLog Pro</h1>
+        <button onclick="saveShift()" class="bg-blue-600 text-white px-5 py-2 rounded-full font-bold shadow-md active:scale-95">SAVE</button>
     </div>
 
-    <div class="grid grid-cols-2 gap-3 mb-4">
-        <div class="bg-blue-700 p-3 rounded-2xl text-center text-white">
-            <div id="weekDrive" class="text-xl font-bold">0.0h</div>
-            <div class="text-[9px] uppercase font-black opacity-80">Wk Drive</div>
+    <div class="grid grid-cols-2 gap-2 mb-4">
+        <div class="bg-blue-600 p-2 rounded-xl text-center text-white">
+            <div id="wD" class="text-lg font-bold">0.0h</div>
+            <div class="text-[8px] uppercase font-bold opacity-80">Wk Drive</div>
         </div>
-        <div id="fortnightDriveCard" class="bg-blue-900 p-3 rounded-2xl text-center text-white">
-            <div id="fortnightDrive" class="text-xl font-bold">0.0h</div>
-            <div class="text-[9px] uppercase font-black opacity-80">2-Wk Drive (Max 90)</div>
+        <div id="fDCard" class="bg-blue-900 p-2 rounded-xl text-center text-white">
+            <div id="fD" class="text-lg font-bold">0.0h</div>
+            <div class="text-[8px] uppercase font-bold opacity-80">2-Wk Drive (90)</div>
         </div>
-        <div id="weekWTDCard" class="bg-indigo-600 p-3 rounded-2xl text-center text-white">
-            <div id="weekWTD" class="text-xl font-bold">0.0h</div>
-            <div class="text-[9px] uppercase font-black opacity-80">Wk WTD
+        <div id="wWCard" class="bg-indigo-500 p-2 rounded-xl text-center text-white">
+            <div id="wW" class="text-lg font-bold">0.0h</div>
+            <div class="text-[8px] uppercase font-bold opacity-80">Wk WTD (60)</div>
+        </div>
+        <div class="bg-indigo-800 p-2 rounded-xl text-center text-white">
+            <div id="fW" class="text-lg font-bold">0.0h</div>
+            <div class="text-[8px] uppercase font-bold opacity-80">2-Wk WTD</div>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="grid grid-cols-2 gap-3 mb-3">
+            <div>
+                <label class="block text-[10px] font-bold text-slate-400 uppercase">Start Duty</label>
+                <input type="time" id="sT">
+            </div>
+            <div>
+                <label class="block text-[10px] font-bold text-slate-400 uppercase">End Duty</label>
+                <input type="time" id="eT">
+            </div>
+        </div>
+        <div class="grid grid-cols-2 gap-3 border-t pt-3">
+            <div>
+                <label class="block text-[10px] font-bold text-blue-600 uppercase">Drive Hours</label>
+                <input type="number" id="pD" step="0.1" placeholder="0.0">
+            </div>
+            <div>
+                <label class="block text-[10px] font-bold text-indigo-600 uppercase text-right">Other Work</label>
+                <input type="number" id="oW" step="0.1" placeholder="0.0" class="text-right">
+            </div>
+        </div>
+        <div class="grid grid-cols-2 gap-3 mt-3 pt-3 border-t">
+            <input type="number" id="sM" placeholder="Start Mi" class="text-xs">
+            <input type="number" id="eM" placeholder="End Mi" class="text-xs text-right">
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="flex justify-between items-center mb-2">
+            <h2 class="font-bold text-slate-700 text-sm">Breaks (15/30)</h2>
+            <button onclick="addBrk()" class="text-blue-600 text-[10px] font-bold uppercase">+ Add</button>
+        </div>
+        <div id="bL" class="space-y-2"></div>
+        <div id="st" class="mt-2 pt-2 border-t text-[10px] font-bold text-center text-red-500 italic">No breaks</div>
+    </div>
+
+    <div id="hist"></div>
+
+    <script>
+        let logs = JSON.parse(localStorage.getItem('drivingLogs')) || [];
+        let bD = [];
+
+        function addBrk() {
+            const id = Date.now();
+            bD.push({ id, s: '', e: '', d: 0 });
+            const row = document.createElement('div');
+            row.id = `r-${id}`;
+            row.className = "flex items-center gap-2 bg-slate-50 p-2 rounded-lg";
+            row.innerHTML = `<input type="time" onchange="cBrk(${id},'s',this.value)" class="text-xs"><span class="text-slate-300">→</span><input type="time" onchange="cBrk(${id},'e',this.value)" class="text-xs"><span id="d-${id}" class="ml-auto font-bold text-[10px] text-slate-400">0m</span><button onclick="rmR(${id})" class="text-red-500 font-bold px-1 ml-1">×</button>`;
+            document.getElementById('bL').appendChild(row);
+        }
+
+        function rmR(id) { document.getElementById(`r-${id}`).remove(); bD = bD.filter(x => x.id !== id); vBrk(); }
+
+        function cBrk(id, f, v) {
+            const b = bD.find(x => x.id === id); b[f] = v;
+            if (b.s && b.e) {
+                const [sh, sm] = b.s.split(':').map(Number); const [eh, em] = b.e.split(':').map(Number);
+                let m = (eh * 60 + em) - (sh * 60 + sm); if (m < 0) m += 1440;
+                b.d = m; document.getElementById(`d-${id}`).innerText = m + 'm';
+            }
+            vBrk();
+        }
+
+        function vBrk() {
+            const s = document.getElementById('st'); const d = bD.map(x => x.d);
+            if (d.some(x => x >= 45)) { s.innerText = "✓ 45m Met"; s.className = "mt-2 pt-2 border-t text-[10px] font-bold text-green-600 text-center uppercase"; return; }
+            let f15 = false;
+            for (let x of d) {
+                if (x >= 15 && !f15) { f15 = true; continue; }
+                if (x >= 30 && f15) { s.innerText = "✓ 15/30 Met"; s.className = "mt-2 pt-2 border-t text-[10px] font-bold text-green-600 text-center uppercase"; return; }
+            }
+            s.innerText = f15 ? "⚠ Need 30m more" : "× Break Required"; s.className = "mt-2 pt-2 border-t text-[10px] font-bold text-orange-500 text-center uppercase";
+        }
+
+        function saveShift() {
+            const d = parseFloat(document.getElementById('pD').value) || 0;
+            const o = parseFloat(document.getElementById('oW').value) || 0;
+            const sT = document.getElementById('sT').value;
+            const eT = document.getElementById('eT').value;
+            if (!sT || !eT) return alert("Enter Times");
+            logs.unshift({ date: new Date().toLocaleDateString('en-GB'), ts: Date.now(), miles: (parseInt(document.getElementById('eM').value) || 0) - (parseInt(document.getElementById('sM').value) || 0), dH: d, oH: o, tW: d + o, rng: `${sT}-${eT}` });
+            localStorage.setItem('drivingLogs', JSON.stringify(logs));
+            document.getElementById('sM').value = document.getElementById('eM').value;
+            document.getElementById('eM').value = ''; document.getElementById('pD').value = ''; document.getElementById('oW').value = ''; document.getElementById('bL').innerHTML = ''; bD = [];
+            refH();
+        }
+
+        function refH() {
+            const h = document.getElementById('hist'); let wD = 0, fD = 0, wW = 0, fW = 0; const n = Date.now();
+            h.innerHTML = logs.map((l, i) => {
+                const a = (n - l.ts) / 86400000;
+                if (a <= 7) { wD += l.dH; wW += l.tW; }
+                if (a <= 14) { fD += l.dH; fW += l.tW; }
+                let r = "";
+                if (i < logs.length - 1) {
+                    const rs = (l.ts - logs[i+1].ts) / 3600000 - (logs[i+1].tW);
+                    r = `<div class="text-[9px] font-bold ${rs >= 9 ? 'text-green-500' : 'text-red-500'}">REST: ${rs.toFixed(1)}h</div>`;
+                }
+                return `<div class="card mb-2"><div class="flex justify-between items-start mb-1"><div><div class="font-bold text-xs">${l.date}</div><div class="text-[9px] text-slate-400 font-bold uppercase">${l.rng}</div></div><div class="text-right"><div class="text-[10px] font-bold text-blue-600">D: ${l.dH}h</div><div class="text-[10px] font-bold text-indigo-600">W: ${l.oH}h</div></div></div><div class="flex justify-between items-center pt-1 border-t">${r}<div class="text-[9px] font-bold text-slate-400 uppercase">${l.miles} mi</div></div></div>`;
+            }).join('');
+            document.getElementById('wD').innerText = wD.toFixed(1) + 'h';
+            document.getElementById('fD').innerText = fD.toFixed(1) + 'h';
+            document.getElementById('wW').innerText = wW.toFixed(1) + 'h';
+            document.getElementById('fW').innerText = fW.toFixed(1) + 'h';
+            document.getElementById('fDCard').style.backgroundColor = fD > 90 ? '#ef4444' : '#1e3a8a';
+            document.getElementById('wWCard').style.backgroundColor = wW > 60 ? '#ef4444' : '#6366f1';
+        }
+        refH();
+    </script>
+</body>
+</html>
