@@ -10,6 +10,7 @@
         .card { background: white; border-radius: 15px; padding: 15px; margin-bottom: 15px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
         input { border-bottom: 2px solid #e2e8f0; padding: 5px; background: transparent; width: 100%; }
         input[type="time"] { border: none; border-bottom: 2px solid #e2e8f0; font-size: 1.1rem; }
+        .stat-card { padding: 10px; rounded: 15px; text-align: center; color: white; }
     </style>
 </head>
 <body class="p-4 font-sans text-slate-900">
@@ -20,189 +21,14 @@
     </div>
 
     <div class="grid grid-cols-2 gap-3 mb-4">
-        <div class="bg-slate-800 text-white p-3 rounded-2xl text-center">
-            <div id="driveHours" class="text-xl font-bold">0.0h</div>
-            <div class="text-[9px] uppercase opacity-70 font-bold">Rolling 2-Wk Drive</div>
+        <div class="bg-blue-700 p-3 rounded-2xl text-center text-white">
+            <div id="weekDrive" class="text-xl font-bold">0.0h</div>
+            <div class="text-[9px] uppercase font-black opacity-80">Wk Drive</div>
         </div>
-        <div id="wtdHours" class="bg-indigo-600 text-white p-3 rounded-2xl text-center">
+        <div id="fortnightDriveCard" class="bg-blue-900 p-3 rounded-2xl text-center text-white">
+            <div id="fortnightDrive" class="text-xl font-bold">0.0h</div>
+            <div class="text-[9px] uppercase font-black opacity-80">2-Wk Drive (Max 90)</div>
+        </div>
+        <div id="weekWTDCard" class="bg-indigo-600 p-3 rounded-2xl text-center text-white">
             <div id="weekWTD" class="text-xl font-bold">0.0h</div>
-            <div class="text-[9px] uppercase opacity-70 font-bold">Weekly WTD Total</div>
-        </div>
-    </div>
-
-    <div class="card">
-        <div class="grid grid-cols-2 gap-4 mb-4 border-b pb-4">
-            <div>
-                <label class="block text-[10px] font-bold text-slate-400 uppercase">Start Duty</label>
-                <input type="time" id="shiftStart">
-            </div>
-            <div>
-                <label class="block text-[10px] font-bold text-slate-400 uppercase">End Duty</label>
-                <input type="time" id="shiftEnd">
-            </div>
-        </div>
-        
-        <div class="grid grid-cols-2 gap-4 pt-2">
-            <div>
-                <label class="block text-xs font-bold text-blue-600">Driving Hours</label>
-                <input type="number" id="pureDrive" step="0.1" placeholder="0.0">
-            </div>
-            <div>
-                <label class="block text-xs font-bold text-indigo-600">Other Work</label>
-                <input type="number" id="otherWork" step="0.1" placeholder="0.0" class="text-right">
-            </div>
-        </div>
-        <div class="mt-4 pt-3 border-t grid grid-cols-2 gap-4">
-            <div>
-                <label class="block text-[10px] font-bold text-slate-400 uppercase">Start Mi</label>
-                <input type="number" id="startMi" placeholder="0">
-            </div>
-            <div>
-                <label class="block text-[10px] font-bold text-slate-400 uppercase text-right">End Mi</label>
-                <input type="number" id="endMi" placeholder="0" class="text-right">
-            </div>
-        </div>
-    </div>
-
-    <div class="card">
-        <div class="flex justify-between items-center mb-3">
-            <h2 class="font-bold text-slate-700">Breaks (15/30)</h2>
-            <button onclick="addNewBreakRow()" class="text-blue-600 text-xs font-bold font-bold uppercase">+ Add Break</button>
-        </div>
-        <div id="breakList" class="space-y-2"></div>
-        <div id="status" class="mt-3 pt-2 border-t text-[11px] font-bold text-center">No breaks logged</div>
-    </div>
-
-    <div id="history"></div>
-
-    <script>
-        let logs = JSON.parse(localStorage.getItem('drivingLogs')) || [];
-        let breakData = [];
-
-        function addNewBreakRow() {
-            const id = Date.now();
-            breakData.push({ id, start: '', end: '', duration: 0 });
-            const container = document.getElementById('breakList');
-            const row = document.createElement('div');
-            row.id = `row-${id}`;
-            row.className = "flex items-center gap-2 bg-slate-50 p-2 rounded-lg";
-            row.innerHTML = `<input type="time" onchange="calcBreak(${id}, 'start', this.value)" class="text-xs bg-transparent border-none"> <span class="text-slate-300">→</span> <input type="time" onchange="calcBreak(${id}, 'end', this.value)" class="text-xs bg-transparent border-none"> <span id="dur-${id}" class="ml-auto font-bold text-[10px] text-slate-400">0m</span> <button onclick="removeRow(${id})" class="text-red-500 font-bold px-2 ml-1">×</button>`;
-            container.appendChild(row);
-            validateBreaks();
-        }
-
-        function removeRow(id) {
-            document.getElementById(`row-${id}`).remove();
-            breakData = breakData.filter(b => b.id !== id);
-            validateBreaks();
-        }
-
-        function calcBreak(id, field, value) {
-            const b = breakData.find(x => x.id === id);
-            b[field] = value;
-            if (b.start && b.end) {
-                const [sH, sM] = b.start.split(':').map(Number);
-                const [eH, eM] = b.end.split(':').map(Number);
-                let mins = (eH * 60 + eM) - (sH * 60 + sM);
-                if (mins < 0) mins += 1440; 
-                b.duration = mins;
-                document.getElementById(`dur-${id}`).innerText = mins + 'm';
-            }
-            validateBreaks();
-        }
-
-        function validateBreaks() {
-            const status = document.getElementById('status');
-            const durs = breakData.map(b => b.duration);
-            if (durs.some(d => d >= 45)) {
-                status.innerText = "✓ 45m Met"; status.className = "mt-3 pt-2 border-t text-[11px] font-bold text-green-600 text-center uppercase";
-                return;
-            }
-            let found15 = false;
-            for (let d of durs) {
-                if (d >= 15 && !found15) { found15 = true; continue; }
-                if (d >= 30 && found15) {
-                    status.innerText = "✓ 15/30 Split Met"; status.className = "mt-3 pt-2 border-t text-[11px] font-bold text-green-600 text-center uppercase";
-                    return;
-                }
-            }
-            status.innerText = found15 ? "⚠ Need 30m block" : "× Break Required";
-            status.className = "mt-3 pt-2 border-t text-[11px] font-bold text-orange-500 text-center uppercase";
-        }
-
-        function saveShift() {
-            const drive = parseFloat(document.getElementById('pureDrive').value) || 0;
-            const other = parseFloat(document.getElementById('otherWork').value) || 0;
-            const sT = document.getElementById('shiftStart').value;
-            const eT = document.getElementById('shiftEnd').value;
-            const sMi = parseInt(document.getElementById('startMi').value) || 0;
-            const eMi = parseInt(document.getElementById('endMi').value) || 0;
-
-            if (!sT || !eT) return alert("Enter Times");
-
-            logs.unshift({ 
-                date: new Date().toLocaleDateString('en-GB'), 
-                ts: Date.now(), 
-                miles: eMi - sMi, 
-                driveHours: drive,
-                otherHours: other,
-                totalWTD: drive + other,
-                range: `${sT} - ${eT}`
-            });
-            
-            localStorage.setItem('drivingLogs', JSON.stringify(logs));
-            document.getElementById('startMi').value = eMi;
-            document.getElementById('endMi').value = '';
-            document.getElementById('pureDrive').value = '';
-            document.getElementById('otherWork').value = '';
-            document.getElementById('breakList').innerHTML = '';
-            breakData = [];
-            refreshHistory();
-        }
-
-        function refreshHistory() {
-            const list = document.getElementById('history');
-            let totalWkDrive = 0, total2WkDrive = 0, totalWkWTD = 0;
-            const now = Date.now();
-            
-            list.innerHTML = logs.map((l, index) => {
-                const age = (now - l.ts) / 86400000;
-                if (age <= 7) { 
-                    totalWkWTD += l.totalWTD;
-                }
-                if (age <= 14) total2WkDrive += l.driveHours;
-
-                let restInfo = "";
-                if (index < logs.length - 1) {
-                    const prev = logs[index + 1];
-                    const restHours = (l.ts - prev.ts) / 3600000 - (prev.driveHours + prev.otherHours);
-                    restInfo = `<div class="text-[10px] font-bold ${restHours >= 9 ? 'text-green-500' : 'text-red-500'}">REST: ${restHours.toFixed(1)}h</div>`;
-                }
-
-                return `
-                <div class="card mb-3">
-                    <div class="flex justify-between items-start mb-2">
-                        <div>
-                            <div class="font-bold text-sm text-slate-800">${l.date}</div>
-                            <div class="text-[10px] text-slate-400 font-bold uppercase">${l.range}</div>
-                        </div>
-                        <div class="text-right">
-                            <div class="text-xs font-bold text-blue-600">Drive: ${l.driveHours}h</div>
-                            <div class="text-xs font-bold text-indigo-600">Work: ${l.otherHours}h</div>
-                        </div>
-                    </div>
-                    <div class="flex justify-between items-center pt-2 border-t">
-                        ${restInfo}
-                        <div class="text-[10px] font-bold text-slate-400 italic">${l.miles} MILES</div>
-                    </div>
-                </div>`;
-            }).join('');
-            
-            document.getElementById('driveHours').innerText = total2WkDrive.toFixed(1) + 'h';
-            document.getElementById('weekWTD').innerText = totalWkWTD.toFixed(1) + 'h';
-            document.getElementById('wtdHours').style.backgroundColor = totalWkWTD > 60 ? '#ef4444' : '#4f46e5';
-        }
-        refreshHistory();
-    </script>
-</body>
-</html>
+            <div class="text-[9px] uppercase font-black opacity-80">Wk WTD
