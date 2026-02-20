@@ -8,15 +8,15 @@
     <style>
         body { background: #f1f5f9; padding-bottom: 50px; -webkit-tap-highlight-color: transparent; }
         .card { background: white; border-radius: 12px; padding: 12px; margin-bottom: 12px; box-shadow: 0 2px 4px rgba(0,0,0,0.05); }
-        input { border-bottom: 2px solid #e2e8f0; padding: 4px; background: transparent; width: 100%; }
-        input[type="time"] { border: none; border-bottom: 2px solid #e2e8f0; font-size: 1rem; }
+        input, select { border-bottom: 2px solid #e2e8f0; padding: 4px; background: transparent; width: 100%; }
+        .btn-save { background: #2563eb; color: white; padding: 8px 20px; border-radius: 20px; font-weight: bold; }
     </style>
 </head>
 <body class="p-3 font-sans text-slate-900">
 
     <div class="flex justify-between items-center mb-4">
-        <h1 class="text-xl font-bold text-slate-800 italic">DriveLog Pro</h1>
-        <button onclick="saveShift()" class="bg-blue-600 text-white px-5 py-2 rounded-full font-bold shadow-md active:scale-95">SAVE</button>
+        <h1 class="text-xl font-bold italic">DriveLog Pro</h1>
+        <button onclick="saveShift()" class="btn-save shadow-md active:scale-95">SAVE SHIFT</button>
     </div>
 
     <div class="grid grid-cols-2 gap-2 mb-4">
@@ -39,112 +39,120 @@
     </div>
 
     <div class="card">
-        <div class="grid grid-cols-2 gap-3 mb-3">
-            <div>
-                <label class="block text-[10px] font-bold text-slate-400 uppercase">Start Duty</label>
-                <input type="time" id="sT">
-            </div>
-            <div>
-                <label class="block text-[10px] font-bold text-slate-400 uppercase">End Duty</label>
-                <input type="time" id="eT">
-            </div>
-        </div>
-        <div class="grid grid-cols-2 gap-3 border-t pt-3">
-            <div>
-                <label class="block text-[10px] font-bold text-blue-600 uppercase">Drive Hours</label>
-                <input type="number" id="pD" step="0.1" placeholder="0.0">
-            </div>
-            <div>
-                <label class="block text-[10px] font-bold text-indigo-600 uppercase text-right">Other Work</label>
-                <input type="number" id="oW" step="0.1" placeholder="0.0" class="text-right">
-            </div>
-        </div>
-        <div class="grid grid-cols-2 gap-3 mt-3 pt-3 border-t">
-            <input type="number" id="sM" placeholder="Start Mi" class="text-xs">
-            <input type="number" id="eM" placeholder="End Mi" class="text-xs text-right">
+        <div class="grid grid-cols-2 gap-3">
+            <input type="number" id="sM" placeholder="Start Miles" class="text-sm">
+            <input type="number" id="eM" placeholder="End Miles" class="text-sm text-right">
         </div>
     </div>
 
     <div class="card">
         <div class="flex justify-between items-center mb-2">
-            <h2 class="font-bold text-slate-700 text-sm">Breaks (15/30)</h2>
-            <button onclick="addBrk()" class="text-blue-600 text-[10px] font-bold uppercase">+ Add</button>
+            <h2 class="font-bold text-sm">Tacho Activity Log</h2>
+            <button onclick="addActivity()" class="text-blue-600 text-[10px] font-bold uppercase">+ Add Activity</button>
         </div>
-        <div id="bL" class="space-y-2"></div>
-        <div id="st" class="mt-2 pt-2 border-t text-[10px] font-bold text-center text-red-500 italic">No breaks</div>
+        <div id="actList" class="space-y-2"></div>
+        
+        <div class="mt-3 pt-2 border-t flex justify-around text-center">
+            <div><div id="dayDrive" class="text-sm font-bold text-blue-600">0.0h</div><div class="text-[8px] uppercase">Drive</div></div>
+            <div><div id="dayWork" class="text-sm font-bold text-indigo-600">0.0h</div><div class="text-[8px] uppercase">Work</div></div>
+            <div><div id="breakStat" class="text-[10px] font-bold text-red-500">No Break</div><div class="text-[8px] uppercase">Status</div></div>
+        </div>
     </div>
 
     <div id="hist"></div>
 
     <script>
         let logs = JSON.parse(localStorage.getItem('drivingLogs')) || [];
-        let bD = [];
+        let activities = [];
 
-        function addBrk() {
+        function addActivity() {
             const id = Date.now();
-            bD.push({ id, s: '', e: '', d: 0 });
+            activities.push({ id, type: 'work', s: '', e: '', d: 0 });
             const row = document.createElement('div');
-            row.id = `r-${id}`;
-            row.className = "flex items-center gap-2 bg-slate-50 p-2 rounded-lg";
-            row.innerHTML = `<input type="time" onchange="cBrk(${id},'s',this.value)" class="text-xs"><span class="text-slate-300">→</span><input type="time" onchange="cBrk(${id},'e',this.value)" class="text-xs"><span id="d-${id}" class="ml-auto font-bold text-[10px] text-slate-400">0m</span><button onclick="rmR(${id})" class="text-red-500 font-bold px-1 ml-1">×</button>`;
-            document.getElementById('bL').appendChild(row);
+            row.id = `act-${id}`;
+            row.className = "flex items-center gap-1 bg-slate-50 p-2 rounded-lg border";
+            row.innerHTML = `
+                <select onchange="updateAct(${id},'type',this.value)" class="text-[10px] font-bold bg-white border rounded">
+                    <option value="work">🛠 WORK</option>
+                    <option value="drive">🚛 DRIVE</option>
+                    <option value="break">☕ BREAK</option>
+                </select>
+                <input type="time" onchange="updateAct(${id},'s',this.value)" class="text-[10px]">
+                <span>-</span>
+                <input type="time" onchange="updateAct(${id},'e',this.value)" class="text-[10px]">
+                <button onclick="rmAct(${id})" class="text-red-500 font-bold px-1 ml-1">×</button>
+            `;
+            document.getElementById('actList').appendChild(row);
         }
 
-        function rmR(id) { document.getElementById(`r-${id}`).remove(); bD = bD.filter(x => x.id !== id); vBrk(); }
+        function rmAct(id) { document.getElementById(`act-${id}`).remove(); activities = activities.filter(x => x.id !== id); calcDay(); }
 
-        function cBrk(id, f, v) {
-            const b = bD.find(x => x.id === id); b[f] = v;
-            if (b.s && b.e) {
-                const [sh, sm] = b.s.split(':').map(Number); const [eh, em] = b.e.split(':').map(Number);
+        function updateAct(id, f, v) {
+            const a = activities.find(x => x.id === id); a[f] = v;
+            if (a.s && a.e) {
+                const [sh, sm] = a.s.split(':').map(Number); const [eh, em] = a.e.split(':').map(Number);
                 let m = (eh * 60 + em) - (sh * 60 + sm); if (m < 0) m += 1440;
-                b.d = m; document.getElementById(`d-${id}`).innerText = m + 'm';
+                a.d = m;
             }
-            vBrk();
+            calcDay();
         }
 
-        function vBrk() {
-            const s = document.getElementById('st'); const d = bD.map(x => x.d);
-            if (d.some(x => x >= 45)) { s.innerText = "✓ 45m Met"; s.className = "mt-2 pt-2 border-t text-[10px] font-bold text-green-600 text-center uppercase"; return; }
-            let f15 = false;
-            for (let x of d) {
-                if (x >= 15 && !f15) { f15 = true; continue; }
-                if (x >= 30 && f15) { s.innerText = "✓ 15/30 Met"; s.className = "mt-2 pt-2 border-t text-[10px] font-bold text-green-600 text-center uppercase"; return; }
-            }
-            s.innerText = f15 ? "⚠ Need 30m more" : "× Break Required"; s.className = "mt-2 pt-2 border-t text-[10px] font-bold text-orange-500 text-center uppercase";
+        function calcDay() {
+            let d = 0, w = 0, brks = [];
+            activities.forEach(a => {
+                if (a.type === 'drive') d += a.d;
+                if (a.type === 'work') w += a.d;
+                if (a.type === 'break') brks.push(a.d);
+            });
+
+            document.getElementById('dayDrive').innerText = (d/60).toFixed(1) + 'h';
+            document.getElementById('dayWork').innerText = (w/60).toFixed(1) + 'h';
+            
+            // Break Logic
+            const status = document.getElementById('breakStat');
+            if (brks.some(b => b >= 45)) { status.innerText = "✓ 45m"; status.className="text-[10px] font-bold text-green-600"; }
+            else if (brks.filter(b => b >= 15).length >= 1 && brks.some(b => b >= 30)) { status.innerText = "✓ 15/30"; status.className="text-[10px] font-bold text-green-600"; }
+            else { status.innerText = "× NO BREAK"; status.className="text-[10px] font-bold text-red-500"; }
+            
+            return { drive: d/60, work: w/60, totalWTD: (d+w)/60 };
         }
 
         function saveShift() {
-            const d = parseFloat(document.getElementById('pD').value) || 0;
-            const o = parseFloat(document.getElementById('oW').value) || 0;
-            const sT = document.getElementById('sT').value;
-            const eT = document.getElementById('eT').value;
-            if (!sT || !eT) return alert("Enter Times");
-            logs.unshift({ date: new Date().toLocaleDateString('en-GB'), ts: Date.now(), miles: (parseInt(document.getElementById('eM').value) || 0) - (parseInt(document.getElementById('sM').value) || 0), dH: d, oH: o, tW: d + o, rng: `${sT}-${eT}` });
+            const day = calcDay();
+            const sM = parseInt(document.getElementById('sM').value) || 0;
+            const eM = parseInt(document.getElementById('eM').value) || 0;
+            
+            if (activities.length === 0) return alert("Add some activities first");
+
+            logs.unshift({
+                date: new Date().toLocaleDateString('en-GB'),
+                ts: Date.now(),
+                miles: eM - sM,
+                dH: day.drive,
+                oH: day.work,
+                tW: day.totalWTD
+            });
+
             localStorage.setItem('drivingLogs', JSON.stringify(logs));
-            document.getElementById('sM').value = document.getElementById('eM').value;
-            document.getElementById('eM').value = ''; document.getElementById('pD').value = ''; document.getElementById('oW').value = ''; document.getElementById('bL').innerHTML = ''; bD = [];
+            document.getElementById('sM').value = eM;
+            document.getElementById('eM').value = '';
+            document.getElementById('actList').innerHTML = '';
+            activities = [];
             refH();
         }
 
         function refH() {
-            const h = document.getElementById('hist'); let wD = 0, fD = 0, wW = 0, fW = 0; const n = Date.now();
+            const h = document.getElementById('hist'); let wD=0, fD=0, wW=0, fW=0; const n = Date.now();
             h.innerHTML = logs.map((l, i) => {
                 const a = (n - l.ts) / 86400000;
                 if (a <= 7) { wD += l.dH; wW += l.tW; }
                 if (a <= 14) { fD += l.dH; fW += l.tW; }
-                let r = "";
-                if (i < logs.length - 1) {
-                    const rs = (l.ts - logs[i+1].ts) / 3600000 - (logs[i+1].tW);
-                    r = `<div class="text-[9px] font-bold ${rs >= 9 ? 'text-green-500' : 'text-red-500'}">REST: ${rs.toFixed(1)}h</div>`;
-                }
-                return `<div class="card mb-2"><div class="flex justify-between items-start mb-1"><div><div class="font-bold text-xs">${l.date}</div><div class="text-[9px] text-slate-400 font-bold uppercase">${l.rng}</div></div><div class="text-right"><div class="text-[10px] font-bold text-blue-600">D: ${l.dH}h</div><div class="text-[10px] font-bold text-indigo-600">W: ${l.oH}h</div></div></div><div class="flex justify-between items-center pt-1 border-t">${r}<div class="text-[9px] font-bold text-slate-400 uppercase">${l.miles} mi</div></div></div>`;
+                return `<div class="card mb-2 flex justify-between items-center text-xs font-bold"><div>${l.date}</div><div class="text-blue-600">D: ${l.dH.toFixed(1)}h</div><div class="text-indigo-600">W: ${l.oH.toFixed(1)}h</div><div>${l.miles}mi</div></div>`;
             }).join('');
             document.getElementById('wD').innerText = wD.toFixed(1) + 'h';
             document.getElementById('fD').innerText = fD.toFixed(1) + 'h';
             document.getElementById('wW').innerText = wW.toFixed(1) + 'h';
             document.getElementById('fW').innerText = fW.toFixed(1) + 'h';
-            document.getElementById('fDCard').style.backgroundColor = fD > 90 ? '#ef4444' : '#1e3a8a';
-            document.getElementById('wWCard').style.backgroundColor = wW > 60 ? '#ef4444' : '#6366f1';
         }
         refH();
     </script>
