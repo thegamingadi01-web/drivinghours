@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Driving Hours</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body { background: #f1f5f9; padding-bottom: 50px; -webkit-tap-highlight-color: transparent; }
+        .card { background: white; border-radius: 15px; padding: 15px; margin-bottom: 15px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+        input { border-bottom: 2px solid #e2e8f0; padding: 5px; background: transparent; }
+    </style>
+</head>
+<body class="p-4 font-sans">
+
+    <div class="flex justify-between items-center mb-4">
+        <h1 class="text-2xl font-bold text-slate-800">Driving Hours</h1>
+        <button onclick="saveShift()" class="bg-blue-600 text-white px-6 py-2 rounded-full font-bold shadow-md active:scale-95 transition-transform">SAVE</button>
+    </div>
+
+    <div class="grid grid-cols-2 gap-3 mb-4">
+        <div class="bg-slate-800 text-white p-3 rounded-2xl text-center">
+            <div id="weekHours" class="text-xl font-bold">0.0h</div>
+            <div class="text-[10px] uppercase opacity-70">Weekly</div>
+        </div>
+        <div id="twoWeekCard" class="bg-indigo-600 text-white p-3 rounded-2xl text-center">
+            <div id="twoWeekHours" class="text-xl font-bold">0.0h</div>
+            <div class="text-[10px] uppercase opacity-70">Rolling 2-Wk</div>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="grid grid-cols-2 gap-4 mb-4">
+            <div>
+                <label class="block text-[10px] font-bold text-slate-400 uppercase">Start Miles</label>
+                <input type="number" id="startMi" class="w-full text-lg" placeholder="0">
+            </div>
+            <div>
+                <label class="block text-[10px] font-bold text-slate-400 uppercase text-right">End Miles</label>
+                <input type="number" id="endMi" class="w-full text-lg text-right" placeholder="0">
+            </div>
+        </div>
+        <label class="block text-[10px] font-bold text-slate-400 uppercase">Total Shift Hours</label>
+        <input type="number" id="dailyHours" step="0.1" class="w-full text-xl text-blue-600 font-bold" placeholder="0.0">
+    </div>
+
+    <div class="card">
+        <div class="flex justify-between items-center mb-4">
+            <h2 class="font-bold text-slate-700">Breaks (15/30 Split)</h2>
+            <button onclick="addNewBreakRow()" class="bg-blue-50 text-blue-700 px-4 py-2 rounded-lg text-sm font-bold border border-blue-200 active:bg-blue-100">+ Add Break</button>
+        </div>
+        <div id="breakList" class="space-y-3">
+            </div>
+        <div id="status" class="mt-4 pt-3 border-t text-sm font-bold text-red-500 italic">No breaks added</div>
+    </div>
+
+    <h2 class="font-bold text-slate-600 mb-2 px-1">Recent History</h2>
+    <div id="history"></div>
+
+    <script>
+        let logs = JSON.parse(localStorage.getItem('drivingLogs')) || [];
+        let breakData = [];
+
+        function addNewBreakRow() {
+            const id = Date.now();
+            breakData.push({ id, start: '', end: '', duration: 0 });
+            
+            const container = document.getElementById('breakList');
+            const row = document.createElement('div');
+            row.id = `row-${id}`;
+            row.className = "flex items-center gap-2 bg-slate-50 p-3 rounded-xl border border-slate-100";
+            row.innerHTML = `
+                <input type="time" onchange="calcBreak(${id}, 'start', this.value)" class="text-sm">
+                <span class="text-slate-300">→</span>
+                <input type="time" onchange="calcBreak(${id}, 'end', this.value)" class="text-sm">
+                <span id="dur-${id}" class="ml-auto font-bold text-xs text-slate-400">0m</span>
+                <button onclick="removeRow(${id})" class="text-red-500 font-bold px-2 ml-2">×</button>
+            `;
+            container.appendChild(row);
+            validateBreaks();
+        }
+
+        function removeRow(id) {
+            document.getElementById(`row-${id}`).remove();
+            breakData = breakData.filter(b => b.id !== id);
+            validateBreaks();
+        }
+
+        function calcBreak(id, field, value) {
+            const b = breakData.find(x => x.id === id);
+            b[field] = value;
+            if (b.start && b.end) {
+                const [sH, sM] = b.start.split(':').map(Number);
+                const [eH, eM] = b.end.split(':').map(Number);
+                let mins = (eH * 60 + eM) - (sH * 60 + sM);
+                if (mins < 0) mins += 1440; 
+                b.duration = mins;
+                const durLabel = document.getElementById(`dur-${id}`);
+                durLabel.innerText = mins + 'm';
+                durLabel.className = mins >= 15 ? "ml-auto font-bold text-xs text-blue-600" : "ml-auto font-bold text-xs text-slate-400";
+            }
+            validateBreaks();
+        }
+
+        function validateBreaks() {
+            const status = document.getElementById('status');
+            const durs = breakData.map(b => b.duration);
+            
+            if (durs.some(d => d >= 45)) {
+                status.innerText = "✓ 45m Block Met";
+                status.className = "mt-4 pt-3 border-t text-sm font-bold text-green-600";
+                return;
+            }
+            let found15 = false;
+            for (let d of durs) {
+                if (d >= 15 && !found15) { found15 = true; continue; }
+                if (d >= 30 && found15) {
+                    status.innerText = "✓ 15/30 Split Met";
+                    status.className = "mt-4 pt-3 border-t text-sm font-bold text-green-600";
+                    return;
+                }
+            }
+            status.innerText = found15 ? "⚠ Need 30m block" : "× Break Required";
+            status.className = "mt-4 pt-3 border-t text-sm font-bold text-orange-500";
+        }
+
+        function saveShift() {
+            const hrs = parseFloat(document.getElementById('dailyHours').value) || 0;
+            if (hrs <= 0) return alert("Please enter shift hours");
+            
+            const start = parseInt(document.getElementById('startMi').value) || 0;
+            const end = parseInt(document.getElementById('endMi').value) || 0;
+            
+            logs.unshift({ date: new Date().toLocaleDateString('en-GB'), ts: Date.now(), miles: end - start, hours: hrs });
+            localStorage.setItem('drivingLogs', JSON.stringify(logs));
+            
+            // Reset for tomorrow
+            document.getElementById('startMi').value = end;
+            document.getElementById('endMi').value = '';
+            document.getElementById('dailyHours').value = '';
+            document.getElementById('breakList').innerHTML = '';
+            breakData = [];
+            validateBreaks();
+            refreshHistory();
+        }
+
+        function refreshHistory() {
+            const list = document.getElementById('history');
+            let w = 0, tw = 0;
+            const now = Date.now();
+            
+            list.innerHTML = logs.map(l => {
+                const days = (now - l.ts) / 86400000;
+                if (days <= 7) w += l.hours;
+                if (days <= 14) tw += l.hours;
+                return `<div class="card flex justify-between py-2 mb-2"><div><div class="font-bold text-sm">${l.date}</div><div class="text-xs text-slate-400">${l.miles} miles</div></div><div class="font-bold text-slate-700">${l.hours}h</div></div>`;
+            }).join('');
+            
+            document.getElementById('weekHours').innerText = w.toFixed(1) + 'h';
+            document.getElementById('twoWeekHours').innerText = tw.toFixed(1) + 'h';
+            document.getElementById('twoWeekCard').style.backgroundColor = tw > 90 ? '#ef4444' : '#4f46e5';
+        }
+
+        refreshHistory();
+    </script>
+</body>
+</html>
