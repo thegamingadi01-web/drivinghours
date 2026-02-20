@@ -3,68 +3,67 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>Driving Hours</title>
+    <title>DriveLog</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         body { background: #f1f5f9; padding-bottom: 50px; -webkit-tap-highlight-color: transparent; }
         .card { background: white; border-radius: 15px; padding: 15px; margin-bottom: 15px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
-        input { border-bottom: 2px solid #e2e8f0; padding: 5px; background: transparent; }
-        input[type="time"] { border: none; border-bottom: 2px solid #e2e8f0; }
+        input { border-bottom: 2px solid #e2e8f0; padding: 5px; background: transparent; width: 100%; }
+        input[type="time"] { border: none; border-bottom: 2px solid #e2e8f0; font-size: 1.1rem; }
     </style>
 </head>
 <body class="p-4 font-sans text-slate-900">
 
     <div class="flex justify-between items-center mb-4">
-        <h1 class="text-2xl font-bold text-slate-800">DriveLog</h1>
-        <button onclick="saveShift()" class="bg-blue-600 text-white px-6 py-2 rounded-full font-bold shadow-md active:scale-95 transition-transform">SAVE</button>
+        <h1 class="text-2xl font-bold text-slate-800 italic">DriveLog</h1>
+        <button onclick="saveShift()" class="bg-blue-600 text-white px-6 py-2 rounded-full font-bold shadow-md active:scale-95 transition-transform">SAVE SHIFT</button>
     </div>
 
     <div class="grid grid-cols-2 gap-3 mb-4">
         <div class="bg-slate-800 text-white p-3 rounded-2xl text-center">
             <div id="weekHours" class="text-xl font-bold">0.0h</div>
-            <div class="text-[10px] uppercase opacity-70">Weekly</div>
+            <div class="text-[10px] uppercase opacity-70 font-bold">This Week</div>
         </div>
         <div id="twoWeekCard" class="bg-indigo-600 text-white p-3 rounded-2xl text-center">
             <div id="twoWeekHours" class="text-xl font-bold">0.0h</div>
-            <div class="text-[10px] uppercase opacity-70">Rolling 2-Wk</div>
+            <div class="text-[10px] uppercase opacity-70 font-bold">Rolling 2-Wk</div>
         </div>
     </div>
 
     <div class="card">
-        <h2 class="text-[10px] font-bold text-slate-400 uppercase mb-3">Duty Times</h2>
+        <h2 class="text-[10px] font-bold text-slate-400 uppercase mb-3 tracking-widest">Shift Times & Mileage</h2>
         <div class="grid grid-cols-2 gap-4 mb-4">
             <div>
-                <label class="block text-xs text-slate-500">Started</label>
-                <input type="time" id="shiftStart" class="w-full text-lg">
+                <label class="block text-xs font-bold text-slate-500">Start Duty</label>
+                <input type="time" id="shiftStart">
             </div>
             <div>
-                <label class="block text-xs text-slate-500">Finished</label>
-                <input type="time" id="shiftEnd" class="w-full text-lg">
+                <label class="block text-xs font-bold text-slate-500">End Duty</label>
+                <input type="time" id="shiftEnd">
             </div>
         </div>
-        
-        <div class="grid grid-cols-2 gap-4 pt-2 border-t mt-2">
+        <div class="grid grid-cols-2 gap-4">
             <div>
-                <label class="block text-xs text-slate-500">Start Miles</label>
-                <input type="number" id="startMi" class="w-full text-lg" placeholder="0">
+                <label class="block text-xs font-bold text-slate-500">Start Miles</label>
+                <input type="number" id="startMi" placeholder="0">
             </div>
             <div>
-                <label class="block text-xs text-slate-500 text-right">End Miles</label>
-                <input type="number" id="endMi" class="w-full text-lg text-right" placeholder="0">
+                <label class="block text-xs font-bold text-slate-500 text-right">End Miles</label>
+                <input type="number" id="endMi" placeholder="0" class="text-right">
             </div>
         </div>
     </div>
 
     <div class="card">
         <div class="flex justify-between items-center mb-4">
-            <h2 class="font-bold text-slate-700">Breaks (15/30 Split)</h2>
-            <button onclick="addNewBreakRow()" class="bg-blue-50 text-blue-700 px-4 py-2 rounded-lg text-sm font-bold border border-blue-200">+ Add Break</button>
+            <h2 class="font-bold text-slate-700">Breaks (15/30)</h2>
+            <button onclick="addNewBreakRow()" class="bg-blue-50 text-blue-700 px-4 py-2 rounded-lg text-sm font-bold border border-blue-200">+ Add</button>
         </div>
         <div id="breakList" class="space-y-3"></div>
-        <div id="status" class="mt-4 pt-3 border-t text-sm font-bold text-red-500 italic">No breaks added</div>
+        <div id="status" class="mt-4 pt-3 border-t text-sm font-bold text-red-500 italic text-center">No breaks logged today</div>
     </div>
 
-    <h2 class="font-bold text-slate-600 mb-2 px-1 text-sm uppercase tracking-wide">Recent History</h2>
+    <h2 class="font-bold text-slate-600 mb-2 px-1 text-sm uppercase tracking-wide">Log History</h2>
     <div id="history"></div>
 
     <script>
@@ -78,7 +77,7 @@
             const row = document.createElement('div');
             row.id = `row-${id}`;
             row.className = "flex items-center gap-2 bg-slate-50 p-3 rounded-xl border border-slate-100";
-            row.innerHTML = `<input type="time" onchange="calcBreak(${id}, 'start', this.value)" class="text-sm bg-transparent"><span class="text-slate-300">→</span><input type="time" onchange="calcBreak(${id}, 'end', this.value)" class="text-sm bg-transparent"><span id="dur-${id}" class="ml-auto font-bold text-xs text-slate-400">0m</span><button onclick="removeRow(${id})" class="text-red-500 font-bold px-2 ml-2">×</button>`;
+            row.innerHTML = `<input type="time" onchange="calcBreak(${id}, 'start', this.value)" class="text-sm bg-transparent border-none"> <span class="text-slate-300">→</span> <input type="time" onchange="calcBreak(${id}, 'end', this.value)" class="text-sm bg-transparent border-none"> <span id="dur-${id}" class="ml-auto font-bold text-xs text-slate-400">0m</span> <button onclick="removeRow(${id})" class="text-red-500 font-bold px-2 ml-2">×</button>`;
             container.appendChild(row);
             validateBreaks();
         }
@@ -109,35 +108,31 @@
             const status = document.getElementById('status');
             const durs = breakData.map(b => b.duration);
             if (durs.some(d => d >= 45)) {
-                status.innerText = "✓ 45m Block Met";
-                status.className = "mt-4 pt-3 border-t text-sm font-bold text-green-600";
+                status.innerText = "✓ 45m Break Met"; status.className = "mt-4 pt-3 border-t text-sm font-bold text-green-600 text-center";
                 return;
             }
             let found15 = false;
             for (let d of durs) {
                 if (d >= 15 && !found15) { found15 = true; continue; }
                 if (d >= 30 && found15) {
-                    status.innerText = "✓ 15/30 Split Met";
-                    status.className = "mt-4 pt-3 border-t text-sm font-bold text-green-600";
+                    status.innerText = "✓ 15/30 Split Met"; status.className = "mt-4 pt-3 border-t text-sm font-bold text-green-600 text-center";
                     return;
                 }
             }
             status.innerText = found15 ? "⚠ Need 30m block" : "× Break Required";
-            status.className = "mt-4 pt-3 border-t text-sm font-bold text-orange-500";
+            status.className = "mt-4 pt-3 border-t text-sm font-bold text-orange-500 text-center";
         }
 
         function saveShift() {
-            const startStr = document.getElementById('shiftStart').value;
-            const endStr = document.getElementById('shiftEnd').value;
-            
-            if (!startStr || !endStr) return alert("Enter shift start and end times");
+            const sT = document.getElementById('shiftStart').value;
+            const eT = document.getElementById('shiftEnd').value;
+            if (!sT || !eT) return alert("Enter Start & End times");
 
-            const [sH, sM] = startStr.split(':').map(Number);
-            const [eH, eM] = endStr.split(':').map(Number);
+            const [sH, sM] = sT.split(':').map(Number);
+            const [eH, eM] = eT.split(':').map(Number);
             let totalMins = (eH * 60 + eM) - (sH * 60 + sM);
             if (totalMins < 0) totalMins += 1440;
-            const hrs = totalMins / 60;
-
+            
             const sMi = parseInt(document.getElementById('startMi').value) || 0;
             const eMi = parseInt(document.getElementById('endMi').value) || 0;
             
@@ -145,18 +140,18 @@
                 date: new Date().toLocaleDateString('en-GB'), 
                 ts: Date.now(), 
                 miles: eMi - sMi, 
-                hours: hrs,
-                timeRange: `${startStr} - ${endStr}`
+                hours: totalMins / 60,
+                range: `${sT} - ${eT}`,
+                endTs: eT // used for rest calc
             });
-            localStorage.setItem('drivingLogs', JSON.stringify(logs));
             
+            localStorage.setItem('drivingLogs', JSON.stringify(logs));
             document.getElementById('startMi').value = eMi;
             document.getElementById('endMi').value = '';
             document.getElementById('shiftStart').value = '';
             document.getElementById('shiftEnd').value = '';
             document.getElementById('breakList').innerHTML = '';
             breakData = [];
-            validateBreaks();
             refreshHistory();
         }
 
@@ -164,12 +159,37 @@
             const list = document.getElementById('history');
             let w = 0, tw = 0;
             const now = Date.now();
-            list.innerHTML = logs.map(l => {
+            
+            list.innerHTML = logs.map((l, index) => {
                 const days = (now - l.ts) / 86400000;
                 if (days <= 7) w += l.hours;
                 if (days <= 14) tw += l.hours;
-                return `<div class="card flex justify-between py-2 mb-2"><div><div class="font-bold text-sm">${l.date}</div><div class="text-[10px] text-slate-400 uppercase font-bold">${l.timeRange}</div><div class="text-xs text-slate-500">${l.miles} miles</div></div><div class="font-bold text-slate-700 text-right">${l.hours.toFixed(1)}h</div></div>`;
+
+                // Calculate Rest from previous entry
+                let restInfo = "";
+                if (index < logs.length - 1) {
+                    const prevShift = logs[index + 1];
+                    const diffMs = l.ts - prevShift.ts;
+                    const restHours = (diffMs / (1000 * 60 * 60)) - prevShift.hours;
+                    restInfo = `<div class="text-[10px] font-bold ${restHours >= 9 ? 'text-green-500' : 'text-red-500'}">REST: ${restHours.toFixed(1)}h</div>`;
+                }
+
+                return `
+                <div class="card mb-3">
+                    <div class="flex justify-between items-start">
+                        <div>
+                            <div class="font-bold text-sm">${l.date}</div>
+                            <div class="text-[10px] text-slate-400 font-bold uppercase">${l.range}</div>
+                        </div>
+                        <div class="text-right font-bold">
+                            <div class="text-blue-600">${l.hours.toFixed(1)}h</div>
+                            <div class="text-[10px] text-slate-400">${l.miles} mi</div>
+                        </div>
+                    </div>
+                    ${restInfo}
+                </div>`;
             }).join('');
+            
             document.getElementById('weekHours').innerText = w.toFixed(1) + 'h';
             document.getElementById('twoWeekHours').innerText = tw.toFixed(1) + 'h';
             document.getElementById('twoWeekCard').style.backgroundColor = tw > 90 ? '#ef4444' : '#4f46e5';
